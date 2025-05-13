@@ -39,11 +39,13 @@ if st.button("Predict Delay"):
     if np.isnan(sched_dep_min) or np.isnan(sched_arr_min):
         st.error("❌ Invalid time format. Use HH:MM (e.g., 13:30).")
     else:
-        # Custom rule: delay if dep_time > arr_time + 15 mins
+        # ✅ Business logic rule
         if sched_dep_min > sched_arr_min + 15:
-            st.warning("⚠️ According to business logic, flight is delayed.")
+            st.warning("⚠️ Based on time logic: Flight is likely to be **Delayed** (Departure > Arrival + 15 mins).")
+        elif sched_dep_min <= sched_arr_min + 15:
+            st.success("✅ Based on time logic: Flight is likely to be **On-Time** (Departure within 15 mins of Arrival).")
         else:
-            # Model-based prediction
+            # Fallback to model prediction
             X = np.array([[ 
                 le_origin.transform([origin])[0],
                 le_dest.transform([destination])[0],
@@ -54,6 +56,6 @@ if st.button("Predict Delay"):
             ]])
             pred = model.predict(X)[0]
             if pred == 1:
-                st.error("🛑 Flight is likely to be Delayed.")
+                st.error("🛑 Model Prediction: Flight is likely to be Delayed.")
             else:
-                st.success("✅ Flight is likely to be On-Time.")
+                st.success("✅ Model Prediction: Flight is likely to be On-Time.")
