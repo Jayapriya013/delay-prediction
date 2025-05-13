@@ -20,9 +20,11 @@ st.subheader("Enter Flight Details")
 origin = st.selectbox("Origin Airport", le_origin.classes_)
 destination = st.selectbox("Destination Airport", le_dest.classes_)
 carrier = st.selectbox("Carrier", le_carrier.classes_)
+
 sched_dep = st.text_input("Scheduled Departure Time (HH:MM)", "12:00")
-sched_arr = st.text_input("Scheduled Arrival Time (HH:MM)", "10:45")
-year = st.number_input("Flight Year", min_value=2000, max_value=2030, value=2024)
+sched_arr = st.text_input("Scheduled Arrival Time (HH:MM)", "13:30")
+actual_dep = st.text_input("Actual Departure Time (HH:MM)", "12:10")
+year = st.number_input("Flight Year", min_value=2000, max_value=2035, value=2024)
 
 def convert_to_minutes(time_str):
     try:
@@ -31,31 +33,34 @@ def convert_to_minutes(time_str):
     except:
         return np.nan
 
-# Prediction Logic
+# Predict
 if st.button("Predict Delay"):
     sched_dep_min = convert_to_minutes(sched_dep)
     sched_arr_min = convert_to_minutes(sched_arr)
+    actual_dep_min = convert_to_minutes(actual_dep)
 
-    if np.isnan(sched_dep_min) or np.isnan(sched_arr_min):
+    if np.isnan(sched_dep_min) or np.isnan(sched_arr_min) or np.isnan(actual_dep_min):
         st.error("❌ Invalid time format. Use HH:MM (e.g., 13:30).")
     else:
-        # ✅ Business logic rule
-        if sched_dep_min > sched_arr_min + 15:
-            st.warning("⚠️ Based on time logic: Flight is likely to be **Delayed** (Departure > Arrival + 15 mins).")
-        elif sched_dep_min <= sched_arr_min + 15:
-            st.success("✅ Based on time logic: Flight is likely to be **On-Time** (Departure within 15 mins of Arrival).")
+        # Business logic: Delay if actual departure > scheduled by 15+ mins
+        delay_threshold = 15
+        delay_diff = actual_dep_min - sched_dep_min
+
+        if delay_diff > delay_threshold:
+            st.warning(f"⚠️ Business Rule: Flight delayed by {delay_diff} minutes.")
         else:
-            # Fallback to model prediction
+            # Model-based prediction
             X = np.array([[ 
                 le_origin.transform([origin])[0],
                 le_dest.transform([destination])[0],
                 le_carrier.transform([carrier])[0],
                 sched_dep_min,
                 sched_arr_min,
+                actual_dep_min,
                 year
             ]])
             pred = model.predict(X)[0]
             if pred == 1:
-                st.error("🛑 Model Prediction: Flight is likely to be Delayed.")
+                st.error("🛑 Flight is likely to be Delayed.")
             else:
-                st.success("✅ Model Prediction: Flight is likely to be On-Time.")
+                st.success("✅ Flight is likely to be On-Time.")
