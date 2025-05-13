@@ -2,14 +2,19 @@ import streamlit as st
 import numpy as np
 
 # Title
-st.title("✈️ Flight Delay Prediction (Based on Actual Time)")
+st.title("✈️ Flight Delay Prediction (Rule-Based)")
 
 # Input Form
 st.subheader("Enter Flight Details")
 
-origin = st.text_input("Origin Airport Code (e.g., JFK)", "")
-destination = st.text_input("Destination Airport Code (e.g., LAX)", "")
-carrier = st.text_input("Carrier Code (e.g., AA)", "")
+# Dropdown options for origin, destination, carrier
+origin_options = ['JFK', 'LAX', 'ORD', 'ATL', 'DFW', 'DEN', 'SFO', 'LAS', 'SEA', 'MIA']
+destination_options = ['LAX', 'JFK', 'ATL', 'ORD', 'SEA', 'MCO', 'PHX', 'IAH', 'BOS', 'CLT']
+carrier_options = ['AA', 'DL', 'UA', 'SW', 'AS', 'NK', 'B6', 'F9']
+
+origin = st.selectbox("Origin Airport", origin_options)
+destination = st.selectbox("Destination Airport", destination_options)
+carrier = st.selectbox("Carrier", carrier_options)
 
 sched_dep = st.text_input("Scheduled Departure Time (HH:MM)", "")
 sched_arr = st.text_input("Scheduled Arrival Time (HH:MM)", "")
