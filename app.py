@@ -26,7 +26,7 @@ sched_arr = st.text_input("Scheduled Arrival Time (HH:MM)", "")
 actual_dep = st.text_input("Actual Departure Time (HH:MM)", "")
 year = st.number_input("Flight Year", min_value=2000, max_value=2030, value=2024)
 
-# Helper to convert HH:MM to minutes
+# Convert HH:MM to minutes
 def convert_to_minutes(time_str):
     try:
         if ":" not in time_str:
@@ -38,27 +38,25 @@ def convert_to_minutes(time_str):
     except:
         return np.nan
 
-# Prediction Logic
+# Predict Button
 if st.button("Predict Delay"):
     sched_dep_min = convert_to_minutes(sched_dep)
     sched_arr_min = convert_to_minutes(sched_arr)
     actual_dep_min = convert_to_minutes(actual_dep)
 
     if np.isnan(sched_dep_min) or np.isnan(sched_arr_min) or np.isnan(actual_dep_min):
-        st.error("❌ Please enter valid time in HH:MM format (e.g., 13:45).")
+        st.error("❌ Please enter valid time in HH:MM format.")
     else:
-        # Prepare input for prediction
+        # Prepare input without actual_dep_min
         X = np.array([[ 
             le_origin.transform([origin])[0],
             le_dest.transform([destination])[0],
             le_carrier.transform([carrier])[0],
             sched_dep_min,
             sched_arr_min,
-            actual_dep_min,
             year
         ]])
 
-        # Predict using the model
         pred = model.predict(X)[0]
 
         # Show model prediction
@@ -67,9 +65,9 @@ if st.button("Predict Delay"):
         else:
             st.success("✅ Prediction: Flight is likely to be On-Time.")
 
-        # Optional info about actual delay
-        delay_minutes = actual_dep_min - sched_dep_min
-        if delay_minutes > 15:
-            st.info(f"ℹ️ Note: Actual departure is delayed by {delay_minutes} minutes.")
+        # Show actual delay info separately
+        delay = actual_dep_min - sched_dep_min
+        if delay > 15:
+            st.info(f"ℹ️ Note: Actual departure is delayed by {delay} minutes.")
         else:
-            st.info(f"ℹ️ Note: Actual departure is on time or within 15 minutes delay.")
+            st.info(f"ℹ️ Note: Actual departure is on time or within 15 minutes.")
