@@ -46,4 +46,4 @@ if st.button("Predict Delay"):
         if delay > 15:
             st.error(f"🛑 Prediction: Flight is Delayed by {delay} minutes.")
         else:
-            st.success("✅ Prediction: Flight is On-Time or within 15 minutes delay.")
+            st.success("✅ Prediction: Flight is On-Time.")
