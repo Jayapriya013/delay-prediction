@@ -40,30 +40,24 @@ def convert_to_minutes(time_str):
 
 # Prediction
 if st.button("Predict Delay"):
-    sched_dep_min = convert_to_minutes(sched_dep)
-    sched_arr_min = convert_to_minutes(sched_arr)
-    actual_dep_min = convert_to_minutes(actual_dep)
+    try:
+        # Encode inputs
+        origin_code = origin_enc.transform([origin])[0]
+        destination_code = destination_enc.transform([destination])[0]
+        carrier_code = carrier_enc.transform([carrier])[0]
 
-    if np.isnan(sched_dep_min) or np.isnan(sched_arr_min) or np.isnan(actual_dep_min):
-        st.error("❌ Please enter valid time in HH:MM format (e.g., 13:45).")
-    else:
-        # 15-minute delay business logic
-        if actual_dep_min > sched_dep_min + 15:
-            st.warning("⚠️ Flight is delayed based on actual departure time (more than 15 minutes late).")
+        # Feature vector
+        X = [[origin_code, destination_code, carrier_code,
+              sched_dep_total_min, sched_arr_total_min,
+              actual_dep_total_min, year]]
+
+        # Model prediction (0: On-Time, 1: Delayed)
+        prediction = model.predict(X)[0]
+
+        if prediction == 1:
+            st.error("🟥 Prediction: Delayed")
         else:
-            # Prepare model input
-            X = np.array([[ 
-                le_origin.transform([origin])[0],
-                le_dest.transform([destination])[0],
-                le_carrier.transform([carrier])[0],
-                sched_dep_min,
-                sched_arr_min,
-                actual_dep_min,
-                year
-            ]])
+            st.success("🟩 Prediction: On-Time")
 
-            pred = model.predict(X)[0]
-            if pred == 1:
-                st.error("🛑 Prediction: Flight is likely to be Delayed.")
-            else:
-                st.success("✅ Prediction: Flight is likely to be On-Time.")
+    except Exception as e:
+        st.error(f"❌ Error: {str(e)}")
