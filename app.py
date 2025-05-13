@@ -1,63 +1,64 @@
 import streamlit as st
 import pickle
-import numpy as np
-
-# Load model and encoders
-@st.cache_resource
-def load_model():
-    with open("model.pkl", "rb") as f:
-        data = pickle.load(f)
-    return data["model"], data["le_origin"], data["le_dest"], data["le_carrier"]
-
-model, le_origin, le_dest, le_carrier = load_model()
 
 # Title
-st.title("✈️ Flight Delay Prediction App")
+st.title("✈️ Flight Delay Prediction")
 
-# Input Form
-st.subheader("Enter Flight Details")
+# Load model and encoders
+with open("model.pkl", "rb") as f:
+    model = pickle.load(f)
+with open("origin_enc.pkl", "rb") as f:
+    origin_enc = pickle.load(f)
+with open("destination_enc.pkl", "rb") as f:
+    destination_enc = pickle.load(f)
+with open("carrier_enc.pkl", "rb") as f:
+    carrier_enc = pickle.load(f)
 
-origin = st.selectbox("Origin Airport", le_origin.classes_)
-destination = st.selectbox("Destination Airport", le_dest.classes_)
-carrier = st.selectbox("Carrier", le_carrier.classes_)
-
-sched_dep = st.text_input("Scheduled Departure Time (HH:MM)", "")
-sched_arr = st.text_input("Scheduled Arrival Time (HH:MM)", "")
-actual_dep = st.text_input("Actual Departure Time (HH:MM)", "")
-year = st.number_input("Flight Year", min_value=2000, max_value=2030, value=2024)
-
-# Helper to convert HH:MM to minutes
-def convert_to_minutes(time_str):
+# Function to convert HH:MM to total minutes
+def time_to_minutes(t):
     try:
-        if ":" not in time_str:
-            raise ValueError
-        h, m = map(int, time_str.strip().split(":"))
-        if not (0 <= h < 24 and 0 <= m < 60):
-            raise ValueError
+        h, m = map(int, t.split(":"))
         return h * 60 + m
     except:
-        return np.nan
+        st.error("⛔ Please enter time in HH:MM format (e.g., 08:30)")
+        return None
 
-# Prediction
+# --- Form inputs ---
+origin = st.selectbox("Origin Airport", origin_enc.classes_)
+destination = st.selectbox("Destination Airport", destination_enc.classes_)
+carrier = st.selectbox("Carrier", carrier_enc.classes_)
+
+sched_dep_time = st.text_input("Scheduled Departure Time (HH:MM)", "08:00")
+sched_arr_time = st.text_input("Scheduled Arrival Time (HH:MM)", "10:00")
+actual_dep_time = st.text_input("Actual Departure Time (HH:MM)", "08:10")
+
+year = st.number_input("Flight Year", min_value=2000, max_value=2100, value=2020)
+
+# --- Predict Button ---
 if st.button("Predict Delay"):
-    try:
-        # Encode inputs
-        origin_code = origin_enc.transform([origin])[0]
-        destination_code = destination_enc.transform([destination])[0]
-        carrier_code = carrier_enc.transform([carrier])[0]
+    # Convert time to minutes
+    sched_dep_min = time_to_minutes(sched_dep_time)
+    sched_arr_min = time_to_minutes(sched_arr_time)
+    actual_dep_min = time_to_minutes(actual_dep_time)
 
-        # Feature vector
-        X = [[origin_code, destination_code, carrier_code,
-              sched_dep_total_min, sched_arr_total_min,
-              actual_dep_total_min, year]]
+    if None not in (sched_dep_min, sched_arr_min, actual_dep_min):
+        try:
+            # Encode categorical features
+            origin_code = origin_enc.transform([origin])[0]
+            destination_code = destination_enc.transform([destination])[0]
+            carrier_code = carrier_enc.transform([carrier])[0]
 
-        # Model prediction (0: On-Time, 1: Delayed)
-        prediction = model.predict(X)[0]
+            # Create input vector
+            X = [[origin_code, destination_code, carrier_code,
+                  sched_dep_min, sched_arr_min, actual_dep_min, year]]
 
-        if prediction == 1:
-            st.error("🟥 Prediction: Delayed")
-        else:
-            st.success("🟩 Prediction: On-Time")
+            # Predict
+            prediction = model.predict(X)[0]
 
-    except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
+            # Show result
+            if prediction == 1:
+                st.error("🟥 Prediction: Delayed")
+            else:
+                st.success("🟩 Prediction: On-Time")
+        except Exception as e:
+            st.error(f"❌ Prediction Error: {str(e)}")
