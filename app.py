@@ -1,41 +1,27 @@
 import streamlit as st
 import numpy as np
 
-# App title
+# Title
 st.title("✈️ Flight Delay Prediction (Rule-Based)")
 
-# Subheader
-st.subheader("📝 Enter Flight Details")
+# Input Form
+st.subheader("Enter Flight Details")
 
-# Dropdown options
+# Dropdown options for origin, destination, carrier
 origin_options = ['JFK', 'LAX', 'ORD', 'ATL', 'DFW', 'DEN', 'SFO', 'LAS', 'SEA', 'MIA']
 destination_options = ['LAX', 'JFK', 'ATL', 'ORD', 'SEA', 'MCO', 'PHX', 'IAH', 'BOS', 'CLT']
 carrier_options = ['AA', 'DL', 'UA', 'SW', 'AS', 'NK', 'B6', 'F9']
-airport_names = ['John F. Kennedy Intl', 'Los Angeles Intl', 'O\'Hare Intl', 'Hartsfield–Jackson ATL',
-                 'Dallas/Fort Worth', 'Denver Intl', 'San Francisco Intl', 'Las Vegas', 'Seattle-Tacoma', 'Miami Intl']
 
-# Layout for inputs
-col1, col2, col3 = st.columns(3)
-with col1:
-    origin = st.selectbox("Origin Airport", origin_options)
-with col2:
-    destination = st.selectbox("Destination Airport", destination_options)
-with col3:
-    carrier = st.selectbox("Carrier", carrier_options)
+origin = st.selectbox("Origin Airport", origin_options)
+destination = st.selectbox("Destination Airport", destination_options)
+carrier = st.selectbox("Carrier", carrier_options)
 
-col4, col5 = st.columns(2)
-with col4:
-    sched_dep = st.text_input("🕐 Scheduled Departure Time (HH:MM)", "")
-with col5:
-    sched_arr = st.text_input("🕘 Scheduled Arrival Time (HH:MM)", "")
+sched_dep = st.text_input("Scheduled Departure Time (HH:MM)", "")
+sched_arr = st.text_input("Scheduled Arrival Time (HH:MM)", "")
+actual_dep = st.text_input("Actual Departure Time (HH:MM)", "")
+year = st.number_input("Flight Year", min_value=2000, max_value=2030, value=2024)
 
-col6, col7 = st.columns(2)
-with col6:
-    year = st.number_input("📅 Flight Year", min_value=2000, max_value=2030, value=2024)
-with col7:
-    airport_name = st.selectbox("🏢 Airport Name", airport_names)
-
-# Helper function
+# Function to convert HH:MM to minutes
 def convert_to_minutes(time_str):
     try:
         if ":" not in time_str:
@@ -47,19 +33,17 @@ def convert_to_minutes(time_str):
     except:
         return np.nan
 
-# Delay prediction using dummy rule (just for demo – actual logic can use dataset)
-if st.button("🔍 Predict Delay"):
+# Predict Button
+if st.button("Predict Delay"):
     sched_dep_min = convert_to_minutes(sched_dep)
-    sched_arr_min = convert_to_minutes(sched_arr)
+    actual_dep_min = convert_to_minutes(actual_dep)
 
-    if np.isnan(sched_dep_min) or np.isnan(sched_arr_min):
-        st.error("❌ Please enter valid HH:MM format for departure and arrival times.")
+    if np.isnan(sched_dep_min) or np.isnan(actual_dep_min):
+        st.error("❌ Please enter valid time in HH:MM format.")
     else:
-        # Dummy logic: Assume flights scheduled late in the day are more delayed
-        if sched_dep_min > 1200:
-            delay = 25  # simulated delay
+        delay = actual_dep_min - sched_dep_min
+
+        if delay > 15:
             st.error(f"🛑 Prediction: Flight is Delayed by {delay} minutes.")
         else:
             st.success("✅ Prediction: Flight is On-Time.")
-
-        st.info(f"📍 Airport: {airport_name}")
