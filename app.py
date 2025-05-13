@@ -1,64 +1,75 @@
 import streamlit as st
 import pickle
-
-# Title
-st.title("✈️ Flight Delay Prediction")
+import numpy as np
 
 # Load model and encoders
-with open("model.pkl", "rb") as f:
-    model = pickle.load(f)
-with open("origin_enc.pkl", "rb") as f:
-    origin_enc = pickle.load(f)
-with open("destination_enc.pkl", "rb") as f:
-    destination_enc = pickle.load(f)
-with open("carrier_enc.pkl", "rb") as f:
-    carrier_enc = pickle.load(f)
+@st.cache_resource
+def load_model():
+    with open("model.pkl", "rb") as f:
+        data = pickle.load(f)
+    return data["model"], data["le_origin"], data["le_dest"], data["le_carrier"]
 
-# Function to convert HH:MM to total minutes
-def time_to_minutes(t):
+model, le_origin, le_dest, le_carrier = load_model()
+
+# Title
+st.title("✈️ Flight Delay Prediction App")
+
+# Input Form
+st.subheader("Enter Flight Details")
+
+origin = st.selectbox("Origin Airport", le_origin.classes_)
+destination = st.selectbox("Destination Airport", le_dest.classes_)
+carrier = st.selectbox("Carrier", le_carrier.classes_)
+
+sched_dep = st.text_input("Scheduled Departure Time (HH:MM)", "")
+sched_arr = st.text_input("Scheduled Arrival Time (HH:MM)", "")
+actual_dep = st.text_input("Actual Departure Time (HH:MM)", "")
+year = st.number_input("Flight Year", min_value=2000, max_value=2030, value=2024)
+
+# Helper to convert HH:MM to minutes
+def convert_to_minutes(time_str):
     try:
-        h, m = map(int, t.split(":"))
+        if ":" not in time_str:
+            raise ValueError
+        h, m = map(int, time_str.strip().split(":"))
+        if not (0 <= h < 24 and 0 <= m < 60):
+            raise ValueError
         return h * 60 + m
     except:
-        st.error("⛔ Please enter time in HH:MM format (e.g., 08:30)")
-        return None
+        return np.nan
 
-# --- Form inputs ---
-origin = st.selectbox("Origin Airport", origin_enc.classes_)
-destination = st.selectbox("Destination Airport", destination_enc.classes_)
-carrier = st.selectbox("Carrier", carrier_enc.classes_)
-
-sched_dep_time = st.text_input("Scheduled Departure Time (HH:MM)", "08:00")
-sched_arr_time = st.text_input("Scheduled Arrival Time (HH:MM)", "10:00")
-actual_dep_time = st.text_input("Actual Departure Time (HH:MM)", "08:10")
-
-year = st.number_input("Flight Year", min_value=2000, max_value=2100, value=2020)
-
-# --- Predict Button ---
+# Prediction Logic
 if st.button("Predict Delay"):
-    # Convert time to minutes
-    sched_dep_min = time_to_minutes(sched_dep_time)
-    sched_arr_min = time_to_minutes(sched_arr_time)
-    actual_dep_min = time_to_minutes(actual_dep_time)
+    sched_dep_min = convert_to_minutes(sched_dep)
+    sched_arr_min = convert_to_minutes(sched_arr)
+    actual_dep_min = convert_to_minutes(actual_dep)
 
-    if None not in (sched_dep_min, sched_arr_min, actual_dep_min):
-        try:
-            # Encode categorical features
-            origin_code = origin_enc.transform([origin])[0]
-            destination_code = destination_enc.transform([destination])[0]
-            carrier_code = carrier_enc.transform([carrier])[0]
+    if np.isnan(sched_dep_min) or np.isnan(sched_arr_min) or np.isnan(actual_dep_min):
+        st.error("❌ Please enter valid time in HH:MM format (e.g., 13:45).")
+    else:
+        # Prepare input for prediction
+        X = np.array([[ 
+            le_origin.transform([origin])[0],
+            le_dest.transform([destination])[0],
+            le_carrier.transform([carrier])[0],
+            sched_dep_min,
+            sched_arr_min,
+            actual_dep_min,
+            year
+        ]])
 
-            # Create input vector
-            X = [[origin_code, destination_code, carrier_code,
-                  sched_dep_min, sched_arr_min, actual_dep_min, year]]
+        # Predict using the model
+        pred = model.predict(X)[0]
 
-            # Predict
-            prediction = model.predict(X)[0]
+        # Show model prediction
+        if pred == 1:
+            st.error("🛑 Prediction: Flight is likely to be Delayed.")
+        else:
+            st.success("✅ Prediction: Flight is likely to be On-Time.")
 
-            # Show result
-            if prediction == 1:
-                st.error("🟥 Prediction: Delayed")
-            else:
-                st.success("🟩 Prediction: On-Time")
-        except Exception as e:
-            st.error(f"❌ Prediction Error: {str(e)}")
+        # Optional info about actual delay
+        delay_minutes = actual_dep_min - sched_dep_min
+        if delay_minutes > 15:
+            st.info(f"ℹ️ Note: Actual departure is delayed by {delay_minutes} minutes.")
+        else:
+            st.info(f"ℹ️ Note: Actual departure is on time or within 15 minutes delay.")
