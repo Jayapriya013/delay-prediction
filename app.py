@@ -62,5 +62,5 @@ if st.button("Predict"):
         pred = model.predict(input_df)[0]
         result_label = le_status.inverse_transform([pred])[0]
 
-        emoji = "🟥" if result_label == "delayed" else "🟩"
+        emoji = "🟥" if result_label.lower() == "delayed" else "🟩"
         st.success(f"Prediction: {emoji} **{result_label.upper()}**")
