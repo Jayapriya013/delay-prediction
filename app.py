@@ -35,7 +35,6 @@ destination = st.selectbox("Destination Airport Code:", destination_options)
 carrier = st.selectbox("Airline Carrier:", carrier_options)
 
 year = st.number_input("Year of Flight (e.g., 2023)", min_value=2000, max_value=2100, value=2023)
-month = st.number_input("Month (1-12)", min_value=1, max_value=12, value=5)
 sched_dep = st.text_input("Scheduled Departure Time (HH:MM):", "09:30")
 sched_arr = st.text_input("Scheduled Arrival Time (HH:MM):", "11:15")
 
@@ -52,7 +51,6 @@ if st.button("Predict"):
             'destination_enc': le_dest.transform([destination])[0],
             'carrier_enc': le_carrier.transform([carrier])[0],
             'year': year,
-            'month': month,
             'sched_dep_min': sched_dep_min,
             'sched_arr_min': sched_arr_min
         }
