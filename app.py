@@ -22,10 +22,11 @@ destination = st.selectbox("Destination Airport", le_dest.classes_)
 carrier = st.selectbox("Carrier", le_carrier.classes_)
 
 sched_dep = st.text_input("Scheduled Departure Time (HH:MM)", "12:00")
-sched_arr = st.text_input("Scheduled Arrival Time (HH:MM)", "13:30")
-actual_dep = st.text_input("Actual Departure Time (HH:MM)", "12:10")
-year = st.number_input("Flight Year", min_value=2000, max_value=2035, value=2024)
+sched_arr = st.text_input("Scheduled Arrival Time (HH:MM)", "14:00")
+actual_dep = st.text_input("Actual Departure Time (HH:MM)", "12:20")
+year = st.number_input("Flight Year", min_value=2000, max_value=2030, value=2024)
 
+# Time conversion helper
 def convert_to_minutes(time_str):
     try:
         h, m = map(int, time_str.split(":"))
@@ -33,7 +34,7 @@ def convert_to_minutes(time_str):
     except:
         return np.nan
 
-# Predict
+# Prediction
 if st.button("Predict Delay"):
     sched_dep_min = convert_to_minutes(sched_dep)
     sched_arr_min = convert_to_minutes(sched_arr)
@@ -42,14 +43,11 @@ if st.button("Predict Delay"):
     if np.isnan(sched_dep_min) or np.isnan(sched_arr_min) or np.isnan(actual_dep_min):
         st.error("❌ Invalid time format. Use HH:MM (e.g., 13:30).")
     else:
-        # Business logic: Delay if actual departure > scheduled by 15+ mins
-        delay_threshold = 15
-        delay_diff = actual_dep_min - sched_dep_min
-
-        if delay_diff > delay_threshold:
-            st.warning(f"⚠️ Business Rule: Flight delayed by {delay_diff} minutes.")
+        # Business Rule Check
+        if actual_dep_min > sched_dep_min + 15:
+            st.warning("⚠️ Flight delayed by more than 15 mins (based on actual departure).")
         else:
-            # Model-based prediction
+            # Prepare input features (7 features)
             X = np.array([[ 
                 le_origin.transform([origin])[0],
                 le_dest.transform([destination])[0],
@@ -61,6 +59,6 @@ if st.button("Predict Delay"):
             ]])
             pred = model.predict(X)[0]
             if pred == 1:
-                st.error("🛑 Flight is likely to be Delayed.")
+                st.error("🛑 Prediction: Flight is likely to be **Delayed**.")
             else:
-                st.success("✅ Flight is likely to be On-Time.")
+                st.success("✅ Prediction: Flight is likely to be **On-Time**.")
