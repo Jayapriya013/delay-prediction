@@ -1,61 +1,80 @@
 import streamlit as st
-import pandas as pd
 import numpy as np
 import pickle
+import pandas as pd
 
-# Load model safely
-with open("model.pkl", "rb") as f:
-    loaded_data = pickle.load(f)
+# Load the XGBoost model
+with open('model.pkl', 'rb') as model_file:
+    model = pickle.load(model_file)
 
-# If your model was saved as a dict: {"model": xgb_model}
-# Update this line based on the actual key in your pkl
-if isinstance(loaded_data, dict):
-    model = loaded_data.get("model")
-else:
-    model = loaded_data
+# Title
+st.title("✈️ Flight Delay Prediction (XGBoost Model)")
 
-# Streamlit UI
-st.title("🛬 Flight Delay Prediction App")
+# Input Form
+st.subheader("Enter Flight Details")
 
-dest_airport = st.selectbox("Destination Airport", ["ATL", "LAX", "ORD", "DFW", "DEN", "JFK", "SFO", "SEA", "LAS", "MCO"])
-carrier = st.selectbox("Carrier", ["AA", "DL", "UA", "WN", "AS", "NK", "B6", "F9"])
-sched_dep = st.text_input("Scheduled Departure Time (HH:MM)", "10:00")
-sched_arr = st.text_input("Scheduled Arrival Time (HH:MM)", "12:30")
-actual_dep = st.text_input("Actual Departure Time (HH:MM)", "10:20")
-flight_year = st.number_input("Flight Year", min_value=2000, max_value=2030, value=2025)
+# Dropdown options for origin, destination, carrier
+origin_options = ['JFK', 'LAX', 'ORD', 'ATL', 'DFW', 'DEN', 'SFO', 'LAS', 'SEA', 'MIA']
+destination_options = ['LAX', 'JFK', 'ATL', 'ORD', 'SEA', 'MCO', 'PHX', 'IAH', 'BOS', 'CLT']
+carrier_options = ['AA', 'DL', 'UA', 'SW', 'AS', 'NK', 'B6', 'F9']
 
-def time_to_minutes(t):
+origin = st.selectbox("Origin Airport", origin_options)
+destination = st.selectbox("Destination Airport", destination_options)
+carrier = st.selectbox("Carrier", carrier_options)
+
+sched_dep = st.text_input("Scheduled Departure Time (HH:MM)", "")
+sched_arr = st.text_input("Scheduled Arrival Time (HH:MM)", "")
+actual_dep = st.text_input("Actual Departure Time (HH:MM)", "")
+year = st.number_input("Flight Year", min_value=2000, max_value=2030, value=2024)
+
+# Function to convert HH:MM to minutes
+def convert_to_minutes(time_str):
     try:
-        h, m = map(int, t.split(":"))
+        if ":" not in time_str:
+            raise ValueError
+        h, m = map(int, time_str.strip().split(":"))
+        if not (0 <= h < 24 and 0 <= m < 60):
+            raise ValueError
         return h * 60 + m
     except:
-        return None
+        return np.nan
 
+# Prepare the data for prediction
+def prepare_input_data(origin, destination, carrier, sched_dep_min, sched_arr_min, actual_dep_min, year):
+    # You might need to map these categorical variables to numerical values as done during model training
+    origin_map = {'JFK': 0, 'LAX': 1, 'ORD': 2, 'ATL': 3, 'DFW': 4, 'DEN': 5, 'SFO': 6, 'LAS': 7, 'SEA': 8, 'MIA': 9}
+    destination_map = {'LAX': 0, 'JFK': 1, 'ATL': 2, 'ORD': 3, 'SEA': 4, 'MCO': 5, 'PHX': 6, 'IAH': 7, 'BOS': 8, 'CLT': 9}
+    carrier_map = {'AA': 0, 'DL': 1, 'UA': 2, 'SW': 3, 'AS': 4, 'NK': 5, 'B6': 6, 'F9': 7}
+    
+    data = {
+        'origin': origin_map.get(origin, -1),
+        'destination': destination_map.get(destination, -1),
+        'carrier': carrier_map.get(carrier, -1),
+        'sched_dep': sched_dep_min,
+        'sched_arr': sched_arr_min,
+        'actual_dep': actual_dep_min,
+        'year': year
+    }
+    return pd.DataFrame([data])
+
+# Predict Button
 if st.button("Predict Delay"):
-    sched_dep_min = time_to_minutes(sched_dep)
-    sched_arr_min = time_to_minutes(sched_arr)
-    actual_dep_min = time_to_minutes(actual_dep)
+    sched_dep_min = convert_to_minutes(sched_dep)
+    actual_dep_min = convert_to_minutes(actual_dep)
 
-    if None in (sched_dep_min, sched_arr_min, actual_dep_min):
-        st.error("❌ Please enter valid time values in HH:MM format.")
-    elif model is None:
-        st.error("❌ Model not loaded correctly.")
+    if np.isnan(sched_dep_min) or np.isnan(actual_dep_min):
+        st.error("❌ Please enter valid time in HH:MM format.")
     else:
-        try:
-            input_data = pd.DataFrame([{
-                "DEST_AIRPORT": dest_airport,
-                "CARRIER": carrier,
-                "SCHEDULED_DEP_TIME": sched_dep_min,
-                "SCHEDULED_ARR_TIME": sched_arr_min,
-                "ACTUAL_DEP_TIME": actual_dep_min,
-                "FLIGHT_YEAR": flight_year
-            }])
-
-            prediction = model.predict(input_data)
-
-            if prediction[0] == 1:
-                st.error("🛑 Prediction: Flight is Delayed.")
-            else:
-                st.success("✅ Prediction: Flight is On-Time.")
-        except Exception as e:
-            st.error(f"⚠️ Error during prediction: {str(e)}")
+        # Prepare the input data for prediction
+        input_data = prepare_input_data(origin, destination, carrier, sched_dep_min, sched_arr_min=None, actual_dep_min=sched_dep_min, year=year)
+        
+        # Use the model to predict the flight delay
+        prediction = model.predict(input_data)
+        
+        delay = prediction[0]
+        
+        # Display the result
+        if delay > 15:
+            st.error(f"🛑 Prediction: Flight is Delayed by {delay} minutes.")
+        else:
+            st.success("✅ Prediction: Flight is On-Time.")
