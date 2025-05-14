@@ -1,60 +1,49 @@
 import streamlit as st
-import pandas as pd
 import numpy as np
-import pickle
 
-# Load the model and encoders
-with open('model.pkl', 'rb') as f:
-    model_data = pickle.load(f)
-    model = model_data['model']
-    le_origin = model_data['le_origin']
-    le_destination = model_data['le_destination']
-    le_carrier = model_data['le_carrier']
+# Title
+st.title("✈️ Flight Delay Prediction (using XG BOOST model)")
 
-# Time conversion function
-def hhmm_to_minutes(time_str):
+# Input Form
+st.subheader("Enter Flight Details")
+
+# Dropdown options for origin, destination, carrier
+origin_options = ['JFK', 'LAX', 'ORD', 'ATL', 'DFW', 'DEN', 'SFO', 'LAS', 'SEA', 'MIA']
+destination_options = ['LAX', 'JFK', 'ATL', 'ORD', 'SEA', 'MCO', 'PHX', 'IAH', 'BOS', 'CLT']
+carrier_options = ['AA', 'DL', 'UA', 'SW', 'AS', 'NK', 'B6', 'F9']
+
+origin = st.selectbox("Origin Airport", origin_options)
+destination = st.selectbox("Destination Airport", destination_options)
+carrier = st.selectbox("Carrier", carrier_options)
+
+sched_dep = st.text_input("Scheduled Departure Time (HH:MM)", "")
+sched_arr = st.text_input("Scheduled Arrival Time (HH:MM)", "")
+actual_dep = st.text_input("Actual Departure Time (HH:MM)", "")
+year = st.number_input("Flight Year", min_value=2000, max_value=2030, value=2024)
+
+# Function to convert HH:MM to minutes
+def convert_to_minutes(time_str):
     try:
-        hours, minutes = map(int, time_str.split(':'))
-        return hours * 60 + minutes
+        if ":" not in time_str:
+            raise ValueError
+        h, m = map(int, time_str.strip().split(":"))
+        if not (0 <= h < 24 and 0 <= m < 60):
+            raise ValueError
+        return h * 60 + m
     except:
-        return 0
+        return np.nan
 
-# Streamlit app UI
-st.set_page_config(page_title="Flight Delay Predictor", layout="centered")
-st.title("✈️ Flight Delay Predictor")
-
-# User inputs
-origin = st.selectbox("Origin Airport", le_origin.classes_)
-destination = st.selectbox("Destination Airport", le_destination.classes_)
-carrier = st.selectbox("Carrier", le_carrier.classes_)
-sched_dep_time = st.text_input("Scheduled Departure Time (HH:MM)", "10:00")
-sched_arr_time = st.text_input("Scheduled Arrival Time (HH:MM)", "12:00")
-actual_dep_time = st.text_input("Actual Departure Time (HH:MM)", "10:15")
-year = st.number_input("Flight Year", min_value=2000, max_value=2100, value=2024)
-
-# Prediction
+# Predict Button
 if st.button("Predict Delay"):
-    try:
-        sched_dep_min = hhmm_to_minutes(sched_dep_time)
-        sched_arr_min = hhmm_to_minutes(sched_arr_time)
-        actual_dep_min = hhmm_to_minutes(actual_dep_time)
+    sched_dep_min = convert_to_minutes(sched_dep)
+    actual_dep_min = convert_to_minutes(actual_dep)
 
-        # Encode inputs
-        origin_encoded = le_origin.transform([origin])[0]
-        destination_encoded = le_destination.transform([destination])[0]
-        carrier_encoded = le_carrier.transform([carrier])[0]
+    if np.isnan(sched_dep_min) or np.isnan(actual_dep_min):
+        st.error("❌ Please enter valid time in HH:MM format.")
+    else:
+        delay = actual_dep_min - sched_dep_min
 
-        # Input vector (7 features)
-        input_data = np.array([[origin_encoded, destination_encoded, carrier_encoded,
-                                sched_dep_min, sched_arr_min, actual_dep_min, year]])
-
-        # Predict
-        prediction = model.predict(input_data)
-
-        if prediction[0] == 1:
-            st.error("🛑 Prediction: Flight is Delayed.")
+        if delay > 15:
+            st.error(f"🛑 Prediction: Flight is Delayed by {delay} minutes.")
         else:
             st.success("✅ Prediction: Flight is On-Time.")
-
-    except Exception as e:
-        st.warning(f"⚠️ Error in prediction: {e}")
