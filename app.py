@@ -27,10 +27,17 @@ year = st.number_input("Flight Year", min_value=2000, max_value=2030, value=2025
 # Convert time string to total minutes
 def convert_to_minutes(time_str):
     try:
-        h, m = map(int, time_str.strip().split(":"))
-        return h * 60 + m
+        time_str = time_str.strip()
+        if ":" not in time_str:
+            raise ValueError("Missing ':' separator")
+        h, m = map(int, time_str.split(":"))
+        if 0 <= h < 24 and 0 <= m < 60:
+            return h * 60 + m
+        else:
+            raise ValueError("Hour or minute out of range")
     except:
         return np.nan
+
 
 # Prediction Logic
 if st.button("Predict Delay"):
