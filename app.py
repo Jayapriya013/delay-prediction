@@ -2,7 +2,7 @@ import streamlit as st
 import numpy as np
 
 # Title
-st.title("✈️ Flight Delay Prediction (using XG BOOST model)")
+st.title("✈️ Flight Delay Prediction (Rule-Based)")
 
 # Input Form
 st.subheader("Enter Flight Details")
