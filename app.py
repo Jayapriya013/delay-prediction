@@ -2,7 +2,7 @@ import streamlit as st
 import numpy as np
 
 # Title
-st.title("✈️ Flight Delay Prediction (Rule-Based)")
+st.title("✈️ Flight Delay Prediction")
 
 # Input Form
 st.subheader("Enter Flight Details")
