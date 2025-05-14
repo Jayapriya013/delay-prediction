@@ -1,65 +1,49 @@
 import streamlit as st
-import pandas as pd
-import joblib
 import numpy as np
 
-# Load model and encoders
-model = joblib.load("model.pkl")
-le_origin = joblib.load("le_origin.pkl")
-le_destination = joblib.load("le_destination.pkl")
-le_carrier = joblib.load("le_carrier.pkl")
+# Title
+st.title("✈️ Flight Delay Prediction (Rule-Based)")
+
+# Input Form
+st.subheader("Enter Flight Details")
+
+# Dropdown options for origin, destination, carrier
+origin_options = ['JFK', 'LAX', 'ORD', 'ATL', 'DFW', 'DEN', 'SFO', 'LAS', 'SEA', 'MIA']
+destination_options = ['LAX', 'JFK', 'ATL', 'ORD', 'SEA', 'MCO', 'PHX', 'IAH', 'BOS', 'CLT']
+carrier_options = ['AA', 'DL', 'UA', 'SW', 'AS', 'NK', 'B6', 'F9']
+
+origin = st.selectbox("Origin Airport", origin_options)
+destination = st.selectbox("Destination Airport", destination_options)
+carrier = st.selectbox("Carrier", carrier_options)
+
+sched_dep = st.text_input("Scheduled Departure Time (HH:MM)", placeholder="e.g., 10:20")
+sched_arr = st.text_input("Scheduled Arrival Time (HH:MM)", placeholder="e.g., 12:30")
+actual_dep = st.text_input("Actual Departure Time (HH:MM)", placeholder="e.g., 10:35")
+year = st.number_input("Flight Year", min_value=2000, max_value=2030, value=2024)
 
 # Function to convert HH:MM to minutes
-def time_to_minutes(t):
+def convert_to_minutes(time_str):
     try:
-        h, m = map(int, t.split(":"))
+        if ":" not in time_str:
+            raise ValueError
+        h, m = map(int, time_str.strip().split(":"))
+        if not (0 <= h < 24 and 0 <= m < 60):
+            raise ValueError
         return h * 60 + m
     except:
-        return None
+        return np.nan
 
-# App UI
-st.set_page_config(page_title="Flight Delay Predictor", layout="centered")
-st.title("✈️ Flight Delay Predictor")
-
-# Inputs
-origin = st.selectbox("Origin Airport", le_origin.classes_)
-destination = st.selectbox("Destination Airport", le_destination.classes_)
-carrier = st.selectbox("Carrier", le_carrier.classes_)
-
-# Empty time input fields
-sched_dep_time = st.text_input("Scheduled Departure Time (HH:MM)", "")
-sched_arr_time = st.text_input("Scheduled Arrival Time (HH:MM)", "")
-actual_dep_time = st.text_input("Actual Departure Time (HH:MM)", "")
-year = st.number_input("Flight Year", min_value=2000, max_value=2100, value=2024)
-
+# Predict Button
 if st.button("Predict Delay"):
-    # Convert times to minutes
-    sched_dep_min = time_to_minutes(sched_dep_time)
-    sched_arr_min = time_to_minutes(sched_arr_time)
-    actual_dep_min = time_to_minutes(actual_dep_time)
+    sched_dep_min = convert_to_minutes(sched_dep)
+    actual_dep_min = convert_to_minutes(actual_dep)
 
-    # Validate time format
-    if None in [sched_dep_min, sched_arr_min, actual_dep_min]:
+    if np.isnan(sched_dep_min) or np.isnan(actual_dep_min):
         st.error("❌ Please enter valid time in HH:MM format.")
     else:
-        try:
-            # Encode categorical values
-            origin_enc = le_origin.transform([origin])[0]
-            destination_enc = le_destination.transform([destination])[0]
-            carrier_enc = le_carrier.transform([carrier])[0]
+        delay = actual_dep_min - sched_dep_min
 
-            # Feature vector (7 features)
-            features = np.array([[origin_enc, destination_enc, carrier_enc,
-                                  sched_dep_min, sched_arr_min, actual_dep_min, year]])
-
-            # Make prediction
-            prediction = model.predict(features)[0]
-
-            # Show result
-            if prediction == 1:
-                st.warning("✈️ The flight is likely to be **delayed**.")
-            else:
-                st.success("🟢 The flight is likely to be **on time**.")
-
-        except Exception as e:
-            st.error(f"⚠️ Error in prediction: {str(e)}")
+        if delay > 15:
+            st.error(f"🛑 Prediction: Flight is Delayed by {delay} minutes.")
+        else:
+            st.success("✅ Prediction: Flight is On-Time.")
